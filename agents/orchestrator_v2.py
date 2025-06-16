@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 import os
 
+from agents.analysis_agent import AnalysisAgent
 from agents.data_gathering_agent import DataGatheringAgent
 from agents.recommendation_agent import RecommendationAgent
 from utils.llm import LLMInitializer
@@ -74,15 +75,19 @@ class OrchestratorAgent:
         return state
 
     def _analyze_data(self, state: WorkflowState) -> WorkflowState:
-        print("📊 Analyzing campaign data...")
-        state.analysis_results = {
-            "analysis": "Campaign CTR is low, but conversion rates are strong.",
-            "issues": ["CTR", "Conversion"],  # This list guides which templates to use
-            "market_context": "Highly competitive market segment."
-        }
+        analysis_agent = AnalysisAgent(llm=self.llm)
+        print("📊 Analyzing campaign data with AnalysisAgent...")
 
+        if not state.campaign_data:
+            raise ValueError("❌ No campaign data to analyze.")
+
+        analysis_result = analysis_agent.analyze_campaign(state.campaign_data)
+        state.analysis_results = analysis_result
         state.current_state = CampaignState.ANALYSIS
+
+        print("📈 Analysis complete.")
         return state
+
 
     def _generate_recommendations(self, state: WorkflowState) -> WorkflowState:
         recommendation_agent = RecommendationAgent(llm=self.llm)
@@ -105,7 +110,6 @@ class OrchestratorAgent:
         state.recommendations = rec_result.get("recommendations", [])
         state.current_state = CampaignState.RECOMMENDATION_GENERATION
         return state
-
 
     def _process_iteration(self, state: WorkflowState) -> WorkflowState:
         print(f"🔁 Iteration {state.iteration_count + 1} complete.")

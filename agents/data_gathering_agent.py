@@ -47,38 +47,20 @@ class DataGatheringAgent:
                 return f"No Wikipedia information found for {topic}"
 
             page = wikipedia.page(search_results[0])
-            print(f"Gathered from wikipedia: {page}")
+            print(f"Gathered from wikipedia: {page.summary}")
             return page.summary
         except Exception as e:
             return f"Error fetching Wikipedia info: {str(e)}"
 
-    # def _search_market_trends(self, keyword: str) -> str:
-    #     """Internal method to search market trends"""
-    #     mock_trends = {
-    #         "fintech": "Growing adoption of digital payments, rise in mobile banking",
-    #         "ecommerce": "Increased mobile shopping, social commerce growth",
-    #         "digital marketing": "Focus on personalization, rise of video content",
-    #         "social media": "Short-form video dominance, increased ad spend",
-    #     }
-    #     return mock_trends.get(keyword.lower(), "No trend data available")
-
     def _search_market_trends(self, keyword: str) -> str:
-        """
-        Search market trends using external APIs or data sources
-        """
-        try:
-            pytrends = TrendReq(hl='en-US', tz=360)
-            pytrends.build_payload([keyword], timeframe='today 3-m')
-            trend_data = pytrends.related_queries()
-
-            # Process and format the trend data
-            rising_trends = trend_data[keyword]['rising']
-            if rising_trends is not None:
-                return f"Rising trends for {keyword}: {', '.join(rising_trends['query'].head().tolist())}"
-            return f"No trend data available for {keyword}"
-
-        except Exception as e:
-            return f"Error fetching market trends: {str(e)}"
+        """Internal method to search market trends"""
+        mock_trends = {
+            "fintech": "Growing adoption of digital payments, rise in mobile banking",
+            "ecommerce": "Increased mobile shopping, social commerce growth",
+            "digital marketing": "Focus on personalization, rise of video content",
+            "social media": "Short-form video dominance, increased ad spend",
+        }
+        return mock_trends.get(keyword.lower(), "No trend data available")
 
     def gather_campaign_context(self, campaign_id: str):
         """Gathers all relevant context for a campaign"""
@@ -88,17 +70,16 @@ class DataGatheringAgent:
         if "name" in campaign_data:
             campaign_name = campaign_data.get('name').lower()
             print(f"🔍 Gathering context for campaign: {campaign_name}")
-            market_trends = self.search_market_trends_tool.invoke({"keyword":campaign_name})
-            wiki_info = self.get_wikipedia_info_tool.invoke({"topic": campaign_name})
-            # if "fintech" in campaign_name:
-            #     market_trends = self.search_market_trends_tool.invoke({"keyword": "fintech"})
-            #     wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "Financial technology"})
-            # elif "ecommerce" in campaign_name:
-            #     market_trends = self.search_market_trends_tool.invoke({"keyword": "ecommerce"})
-            #     wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "E-commerce"})
-            # else:
-            #     market_trends = self.search_market_trends_tool.invoke({"keyword": "digital marketing"})
-            #     wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "Digital marketing"})
+
+            if "fintech" in campaign_name:
+                market_trends = self.search_market_trends_tool.invoke({"keyword": "fintech"})
+                wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "Financial technology"})
+            elif "ecommerce" in campaign_name:
+                market_trends = self.search_market_trends_tool.invoke({"keyword": "ecommerce"})
+                wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "E-commerce"})
+            else:
+                market_trends = self.search_market_trends_tool.invoke({"keyword": "digital marketing"})
+                wiki_info = self.get_wikipedia_info_tool.invoke({"topic": "Digital marketing"})
 
             # Add context to campaign data
             campaign_data["market_context"] = {

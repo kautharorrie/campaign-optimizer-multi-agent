@@ -10,3 +10,5 @@ typing-extensions>=4.9.0
 langchain-core~=0.3.65
 wikipedia~=1.4.0
 python-dotenv~=1.1.0
+pytrends~=4.9.2
+requests~=2.32.4
