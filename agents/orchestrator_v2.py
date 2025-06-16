@@ -1,20 +1,17 @@
 from enum import Enum
 from typing import Dict, List, Optional
 
-from langchain_core.messages import HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
-import os
 
 from agents.analysis_agent import AnalysisAgent
 from agents.data_gathering_agent import DataGatheringAgent
 from agents.recommendation_agent import RecommendationAgent
+from agents.user_input_analysis_agent import UserInputAnalysisAgent, UserInputType
 from utils.llm import LLMInitializer
 
 
-# ---- ENUMS AND STATE ----
 class CampaignState(Enum):
     DATA_GATHERING = "DATA_GATHERING"
     ANALYSIS = "ANALYSIS"
@@ -29,40 +26,64 @@ class WorkflowState(BaseModel):
     feedback: Optional[str] = None
     iteration_count: int = 0
     max_iterations: int = 3
+    user_input: Optional[str] = None
+    user_input_type: Optional[UserInputType] = None
 
-# ---- MOCKED ORCHESTRATOR ----
+
 class OrchestratorAgent:
     def __init__(self):
         load_dotenv()
         self.workflow = self._create_workflow()
         self.llm = LLMInitializer().llm
+        self.user_input_agent = UserInputAnalysisAgent(self.llm)
 
     def _create_workflow(self) -> StateGraph:
         workflow = StateGraph(WorkflowState)
 
         # Add nodes
+        workflow.add_node("analyze_user_input", self._analyze_user_input)
         workflow.add_node("gather_data", self._gather_data)
         workflow.add_node("analyze_data", self._analyze_data)
         workflow.add_node("generate_recommendations", self._generate_recommendations)
-        workflow.add_node("process_iteration", self._process_iteration)
+        # workflow.add_node("generate_summary", self._generate_summary)
 
-        # Add edges
+        # Define the flow
+        # 1. Start with user input analysis
+        workflow.add_edge("analyze_user_input", "gather_data")
+
+        # 2. Gather data always goes to analysis
         workflow.add_edge("gather_data", "analyze_data")
-        workflow.add_edge("analyze_data", "generate_recommendations")
-        workflow.add_edge("generate_recommendations", "process_iteration")
 
-        # Conditional edge for iteration loop
+        # 3. After analysis, route based on initial user input type
         workflow.add_conditional_edges(
-            "process_iteration",
-            self._should_continue_iteration,
+            "analyze_data",
+            self._route_after_analysis,
             {
-                True: "gather_data",
-                False: END
+                UserInputType.SUMMARY: "generate_summary",  # For summary, we end after analysis
+                UserInputType.RECOMMENDATION: "generate_recommendations",
+                UserInputType.OTHER: "generate_recommendations",
+                UserInputType.DONE: END
             }
         )
 
-        workflow.set_entry_point("gather_data")
+        # 4. Recommendations end the workflow
+        workflow.add_edge("generate_recommendations", END)
+        workflow.add_edge("generate_summary", END)
+
+        # Set the entry point
+        workflow.set_entry_point("analyze_user_input")
         return workflow
+
+    def _analyze_user_input(self, state: WorkflowState) -> WorkflowState:
+        """Use UserInputAnalysisAgent to analyze the input"""
+        analysis_result = self.user_input_agent.analyze_input(state.user_input)
+        state.user_input_type = analysis_result["type"]
+        print(f"📝 User input classified as: {state.user_input_type.value}")
+        return state
+
+    def _route_after_analysis(self, state: WorkflowState) -> UserInputType:
+        """Route to appropriate node based on initial user input type"""
+        return state.user_input_type or UserInputType.OTHER
 
     def _gather_data(self, state: WorkflowState) -> WorkflowState:
         """Use DataGatheringAgent to gather and enrich campaign context"""
