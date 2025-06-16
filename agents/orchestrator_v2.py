@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from agents.analysis_agent import AnalysisAgent
 from agents.data_gathering_agent import DataGatheringAgent
 from agents.recommendation_agent import RecommendationAgent
+from agents.summary_agent import SummaryAgent
 from agents.user_input_analysis_agent import UserInputAnalysisAgent, UserInputType
 from utils.llm import LLMInitializer
 
@@ -23,6 +24,7 @@ class WorkflowState(BaseModel):
     campaign_data: Optional[Dict] = None
     analysis_results: Optional[Dict] = None
     recommendations: Optional[List[str]] = None
+    summary: Optional[Dict] = None
     feedback: Optional[str] = None
     iteration_count: int = 0
     max_iterations: int = 3
@@ -45,32 +47,28 @@ class OrchestratorAgent:
         workflow.add_node("gather_data", self._gather_data)
         workflow.add_node("analyze_data", self._analyze_data)
         workflow.add_node("generate_recommendations", self._generate_recommendations)
-        # workflow.add_node("generate_summary", self._generate_summary)
+        workflow.add_node("generate_summary", self._generate_summary)  # Add summary node
 
         # Define the flow
-        # 1. Start with user input analysis
         workflow.add_edge("analyze_user_input", "gather_data")
-
-        # 2. Gather data always goes to analysis
         workflow.add_edge("gather_data", "analyze_data")
 
-        # 3. After analysis, route based on initial user input type
+        # Route based on user input type after analysis
         workflow.add_conditional_edges(
             "analyze_data",
             self._route_after_analysis,
             {
-                UserInputType.SUMMARY: "generate_summary",  # For summary, we end after analysis
+                UserInputType.SUMMARY: "generate_summary",  # Route to summary
                 UserInputType.RECOMMENDATION: "generate_recommendations",
                 UserInputType.OTHER: "generate_recommendations",
                 UserInputType.DONE: END
             }
         )
 
-        # 4. Recommendations end the workflow
+        # Add terminal edges
         workflow.add_edge("generate_recommendations", END)
         workflow.add_edge("generate_summary", END)
 
-        # Set the entry point
         workflow.set_entry_point("analyze_user_input")
         return workflow
 
@@ -109,6 +107,22 @@ class OrchestratorAgent:
         print("📈 Analysis complete.")
         return state
 
+    def _generate_summary(self, state: WorkflowState) -> WorkflowState:
+        """Generate summary using SummaryAgent"""
+        summary_agent = SummaryAgent(llm=self.llm)
+        print("📋 Generating campaign summary...")
+
+        if not state.campaign_data or not state.analysis_results:
+            raise ValueError("❌ Missing required data for summary generation.")
+
+        summary_result = summary_agent.generate_summary(
+            campaign_data=state.campaign_data,
+            analysis_results=state.analysis_results
+        )
+
+        state.summary = summary_result
+        print("📊 Summary generated successfully.")
+        return state
 
     def _generate_recommendations(self, state: WorkflowState) -> WorkflowState:
         recommendation_agent = RecommendationAgent(llm=self.llm)
@@ -155,7 +169,7 @@ class OrchestratorAgent:
             "campaign_data": final_state["campaign_data"],
             "analysis": final_state["analysis_results"],
             "recommendations": final_state["recommendations"],
-            "iterations": final_state["iteration_count"]
+            "summary": final_state.get("summary")
         }
 
 if __name__ == "__main__":
@@ -166,4 +180,3 @@ if __name__ == "__main__":
     print("📊 Campaign Data:", result["campaign_data"])
     print("📈 Analysis:", result["analysis"])
     print("✅ Recommendations:", result["recommendations"])
-    print("🔁 Total Iterations:", result["iterations"])

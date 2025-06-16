@@ -3,7 +3,6 @@ from typing import Dict, Optional
 from langchain_core.tools import Tool
 import wikipedia
 from pathlib import Path
-from pytrends.request import TrendReq
 
 class DataGatheringAgent:
     def __init__(self):
