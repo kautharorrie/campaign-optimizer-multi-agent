@@ -1,0 +1,14 @@
+{
+  "campaign_id": "CAMPAIGN123",
+  "name": "Fintech Summer Promo",
+  "clicks": 2543,
+  "impressions": 43290,
+  "conversions": 230,
+  "spend": 9500,
+  "revenue": 17500,
+  "start_date": "2025-06-01",
+  "end_date": "2025-06-15",
+  "target_ctr": 0.06,
+  "target_roi": 1.5,
+  "keywords": ["mobile payments", "digital banking", "fintech apps"]
+}
