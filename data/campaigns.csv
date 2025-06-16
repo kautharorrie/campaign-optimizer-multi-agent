@@ -1,0 +1,4 @@
+campaign_id,name,impressions,clicks,conversions,spend,revenue,target_ctr,target_roi
+CAMPAIGN001,Fintech Boost,100000,1200,50,8000,16000,0.02,1.0
+CAMPAIGN002,Ecommerce Surge,85000,900,45,6000,11000,0.025,1.2
+CAMPAIGN003,Social Media Push,60000,1500,30,7500,9000,0.03,1.5

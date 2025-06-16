@@ -12,3 +12,4 @@ wikipedia~=1.4.0
 python-dotenv~=1.1.0
 pytrends~=4.9.2
 requests~=2.32.4
+rich~=14.0.0

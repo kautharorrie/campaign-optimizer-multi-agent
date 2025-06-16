@@ -45,7 +45,7 @@ class UserInputAnalysisAgent:
         EXPLANATION: [brief explanation]
         """
 
-        response = self.llm([HumanMessage(content=prompt.format(input=user_input))])
+        response = self.llm.invoke([HumanMessage(content=prompt.format(input=user_input))])
 
         try:
             # Parse LLM response

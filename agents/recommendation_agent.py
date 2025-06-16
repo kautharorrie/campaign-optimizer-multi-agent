@@ -1,176 +1,156 @@
-import json
-
+from datetime import datetime
 from langchain_core.messages import HumanMessage
-from langchain_core.tools import BaseTool, StructuredTool, tool
-from typing import Dict, List, Optional
-from pydantic import BaseModel
+from typing import Dict, List
 
+from utils.conversation_manager import Message, MessageType
 from utils.llm import LLMInitializer
-
 
 class RecommendationAgent:
     def __init__(self, llm=None):
         self.llm = llm or LLMInitializer().llm
-        self.recommendation_templates = {
-            "low_ctr": """
-            To improve the Click-Through Rate (CTR):
-            1. [Action]: Review and optimize ad copy
-               - Test different headlines and descriptions
-               - Ensure clear value proposition
-               - Include strong call-to-action
-            
-            2. [Action]: Refine targeting
-               - Review audience segments
-               - Analyze best performing demographics
-               - Adjust bid modifiers for high-performing segments
-            
-            3. [Action]: Enhance ad relevance
-               - Improve keyword-to-ad relevance
-               - Update ad extensions
-               - Consider responsive search ads
-            """,
 
-            "high_cost": """
-            To reduce campaign costs:
-            1. [Action]: Optimize bidding strategy
-               - Review and adjust manual bids
-               - Test automated bidding strategies
-               - Set proper bid limits
-            
-            2. [Action]: Improve quality score
-               - Enhance landing page experience
-               - Increase ad relevance
-               - Work on expected CTR
-            
-            3. [Action]: Refine targeting
-               - Remove underperforming placements
-               - Adjust demographic targeting
-               - Review and update negative keywords
-            """,
+    def generate_recommendations(self,
+                                 campaign_data: Dict,
+                                 analysis: Dict,
+                                 conversation_history: List[Message] = None) -> Dict:
+        """
+        Generate or refine recommendations based on campaign data, analysis, and conversation history
+        """
+        try:
+            # Customize recommendations considering conversation history
+            custom_recs = self._customize_recommendations(
+                campaign_data=campaign_data,
+                analysis=analysis,
+                conversation_history=conversation_history
+            )
 
-            "low_conversion": """
-            To increase conversion rate:
-            1. [Action]: Optimize landing pages
-               - Improve page load speed
-               - Enhance mobile experience
-               - Simplify conversion process
+            # Ensure we have at least some recommendations
+            if not custom_recs:
+                custom_recs = ["No specific recommendations generated. Please try again."]
+
+            return {
+                "recommendations": custom_recs,
+                "template_used": True,
+                "timestamp": datetime.now().isoformat(),
+                "context": {
+                    "had_previous_interaction": bool(conversation_history),
+                    "issues_addressed": analysis.get("issues", [])
+                }
+            }
+        except Exception as e:
+            print(f"Error generating recommendations: {str(e)}")
+            return {
+                "recommendations": ["Unable to generate recommendations at this time."],
+                "template_used": False,
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
+
+    def _customize_recommendations(self,
+                                   campaign_data: Dict,
+                                   analysis: Dict,
+                                   conversation_history: List[Message] = None):
+        """
+        Customize recommendations considering conversation history and user preferences
+        """
+        try:
+            # Format conversation context
+            conversation_context = self._format_conversation_history(conversation_history)
+
+            # Safely extract values with default fallbacks
+            campaign_name = campaign_data.get('name', 'Unknown')
+            campaign_spend = campaign_data.get('spend', 0)
+            campaign_revenue = campaign_data.get('revenue', 0)
+
+            # Safely extract analysis data
+            analysis_summary = analysis.get('analysis', '')
+            market_trends = ''
+            if isinstance(analysis.get('market_context'), dict):
+                market_trends = analysis['market_context'].get('trends', '')
+            elif isinstance(analysis.get('market_context'), str):
+                market_trends = analysis['market_context']
+
+            context = f"""
+            **IMPORTANT**: Always take the user prompt into consideration when responding
             
-            2. [Action]: Improve targeting quality
-               - Focus on high-intent keywords
-               - Refine audience targeting
-               - Use remarketing lists
+            Conversation Context:
+            {conversation_context}
             
-            3. [Action]: Enhance value proposition
-               - Test different offers
-               - Add social proof
-               - Implement urgency elements
+            Campaign Context:
+            - Name: {campaign_name}
+            - Spend: ${campaign_spend:,.2f}
+            - Revenue: ${campaign_revenue:,.2f}
+            
+            Analysis Summary:
+            {analysis_summary}
+            
+            Market Context:
+            {market_trends}
+            
             """
-        }
 
-    def _generate_template_recommendations(self, issues: List[str]) -> List[str]:
-        """Internal method for generating template recommendations"""
-        recommendations = []
-        for issue in issues:
-            if "CTR" in issue:
-                recommendations.append(self.recommendation_templates["low_ctr"])
-            elif "Cost" in issue:
-                recommendations.append(self.recommendation_templates["high_cost"])
-            elif "Conversion" in issue:
-                recommendations.append(self.recommendation_templates["low_conversion"])
-        return recommendations
+            prompt = f"""
+            Based on this context:
+            {context}
+            
+            Unless otherwise specified, please provide 3 specific, actionable recommendations to improve this campaign.
+            Format each recommendation as:
+            
+            Priority #[1-3]: [Action Item]
+            - Specific steps to implement
+            - Expected impact
+            - Implementation timeline
+            
+            Note: Consider any specific requests or preferences mentioned in the conversation.
+            """
 
-    def _customize_recommendations(self, template_recs: List[str], campaign_data: Dict, analysis: Dict) -> List[str]:
-        """Internal method for customizing recommendations"""
-        context = f"""
-        Campaign Context:
-        - Name: {campaign_data.get('name', 'Unknown')}
-        - Spend: ${campaign_data.get('spend', 0):,.2f}
-        - Revenue: ${campaign_data.get('revenue', 0):,.2f}
-        
-        Analysis Summary:
-        {analysis.get('analysis', '')}
-        
-        Market Context:
-        {analysis.get('market_context', '')}
-        """
+            response = self.llm.invoke([HumanMessage(content=prompt)])
 
-        prompt = f"""
-        Given this campaign context:
-        {context}
-        
-        And these template recommendations:
-        {template_recs}
-        
-        Customize and prioritize these recommendations to be more specific to this campaign.
-        Focus on actionable steps that align with the campaign's context and market conditions.
-        Format each recommendation as:
-        
-        Priority #[1-3]: [Action Item]
-        - Specific steps to implement
-        - Expected impact
-        - Implementation timeline
-        """
+            # Ensure we get a string response and split it into recommendations
+            if response and hasattr(response, 'content'):
+                recommendations = [
+                    rec.strip() for rec in response.content.split("\n\n")
+                    if rec.strip() and rec.strip().startswith("Priority")
+                ]
+                if recommendations:
+                    return recommendations
 
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        return response.content.split("\n\n")
-
-    def _incorporate_feedback(self, recommendations: List[str], feedback: str) -> List[str]:
-        """Internal method for incorporating feedback"""
-        prompt = f"""
-        Original Recommendations:
-        {recommendations}
-        
-        Feedback Received:
-        {feedback}
-        
-        Please refine these recommendations considering the feedback.
-        Keep the same format but adjust the content to address the feedback points.
-        """
-
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        return response.content.split("\n\n")
-
-    def generate_recommendations(self, campaign_data: Dict, analysis: Dict, feedback: Optional[str] = None) -> Dict:
-        """Main method to generate recommendations"""
-        # Get template recommendations based on issues
-        template_recs = self._generate_template_recommendations(analysis["issues"])
-
-        # Customize recommendations for this campaign
-        custom_recs = self._customize_recommendations(template_recs, campaign_data, analysis)
-
-        # If feedback exists, incorporate it
-        if feedback:
-            final_recs = self._incorporate_feedback(custom_recs, feedback)
-        else:
-            final_recs = custom_recs
-
-        return {
-            "recommendations": final_recs,
-            "template_used": bool(template_recs),
-            "feedback_incorporated": bool(feedback)
-        }
-
-    # If you need to expose these as tools, create separate tool methods
-    @tool
-    def generate_template_recommendations_tool(self, issues: str) -> str:
-        """Tool for generating template recommendations based on issues"""
-        try:
-            issues_list = issues.split(",")
-            recommendations = self._generate_template_recommendations(issues_list)
-            return "\n\n".join(recommendations)
         except Exception as e:
-            return f"Error generating recommendations: {str(e)}"
+            print(f"Error in customizing recommendations: {str(e)}")
+            return ["1. Review and optimize campaign settings for better performance."]
 
-    @tool
-    def customize_recommendations_tool(self, input_str: str) -> str:
-        """Tool for customizing recommendations"""
+    def _format_conversation_history(self, history: List[Message]) -> str:
+        """Format conversation history into useful context"""
+        if not history:
+            return "No previous conversation history."
+
         try:
-            input_data = json.loads(input_str)
-            template_recs = input_data.get("template_recs", [])
-            campaign_data = input_data.get("campaign_data", {})
-            analysis = input_data.get("analysis", {})
+            relevant_interactions = []
+            for msg in history:
+                if msg.type == MessageType.USER_INPUT:
+                    relevant_interactions.append(f"User Prompt: {msg.content}")
+                elif msg.type == MessageType.USER_FEEDBACK:
+                    relevant_interactions.append(f"User Feedback: {msg.content}")
+                elif msg.type == MessageType.SYSTEM_RESPONSE:
+                    # Include a summarized version of system responses
+                    relevant_interactions.append(f"Previous Response: {msg.content[:100]}...")
 
-            custom_recs = self._customize_recommendations(template_recs, campaign_data, analysis)
-            return "\n\n".join(custom_recs)
+            if not relevant_interactions:
+                return "No relevant conversation history found."
+
+            formatted_history = "\n".join(relevant_interactions)
+
+            return f"""
+            Conversation Context:
+            {formatted_history}
+            
+            Based on this history and user prompt always:
+            1. Address and follow any specific requests or concerns mentioned
+            2. Build upon previous suggestions if relevant
+            3. Avoid repeating previous recommendations
+            4. Maintain consistency in recommendation style
+            """
         except Exception as e:
-            return f"Error customizing recommendations: {str(e)}"
+            print(f"Error formatting conversation history: {str(e)}")
+            return "Error processing conversation history."
+
