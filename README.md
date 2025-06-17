@@ -1,133 +1,144 @@
-# AI-Powered Campaign Analysis and Recommendation Platform
+# Campaign Agent Platform - AI-Powered Marketing Campaign Analysis and Optimization
 
-A modular Python-based platform that analyzes marketing campaign performance and provides data-driven recommendations through an interactive conversational interface. The platform combines data analysis, natural language processing, and machine learning to deliver actionable insights and personalized recommendations for campaign optimization.
+The Campaign Agent Platform is an intelligent system that analyzes marketing campaign performance, provides actionable recommendations, and generates comprehensive summaries using a multi-agent architecture powered by Large Language Models (LLMs).
 
-The platform uses a multi-agent architecture to break down complex campaign analysis tasks into specialized components that work together to gather data, analyze performance metrics, generate recommendations, and provide summaries through natural conversation. It leverages language models to provide contextual understanding and natural language generation capabilities.
+This platform helps marketing teams optimize their campaigns by automatically analyzing key performance metrics, detecting concerning patterns, providing data-driven recommendations, and generating insightful summaries. It leverages a modular agent-based architecture to break down complex campaign analysis into specialized tasks handled by different agents.
 
-Key features include:
-- Interactive conversational interface for campaign analysis
-- Automated gathering and analysis of campaign performance metrics
-- Data-driven recommendations based on performance patterns
-- Contextual awareness through conversation history
-- Customizable analysis and recommendation generation
-- Support for multiple campaign types and metrics
+The platform features:
+- Automated analysis of campaign metrics (CTR, CPC, ROI, conversion rates)
+- Pattern detection for identifying performance issues
+- Contextual recommendations based on historical data and market trends
+- Interactive conversation management for refining insights
+- Integration with external data sources for market research
+- Comprehensive campaign performance summaries
 
 ## Repository Structure
 ```
-.
-├── __init__.py                     # Package initialization and session management
-├── analysis_agent.py              # Analyzes campaign metrics and performance patterns
-├── data_gathering_agent.py        # Gathers campaign data and market context
-├── interactive_session.py         # Manages conversation flow and user interactions  
-├── orchestrator_v2.py            # Coordinates workflow between different agents
-├── recommendation_agent.py        # Generates customized recommendations
-├── summary_agent.py              # Creates campaign performance summaries
-└── user_input_analysis_agent.py  # Analyzes user intent from natural language input
+campaign-agent-platform/
+├── agents/                     # Specialized AI agents for different tasks
+│   ├── analysis_agent.py      # Analyzes campaign metrics and patterns
+│   ├── data_gathering_agent.py # Collects campaign and market data
+│   ├── recommendation_agent.py # Generates optimization recommendations
+│   ├── summary_agent.py       # Creates comprehensive summaries
+│   └── user_input_analysis_agent.py # Analyzes user requests
+├── orchestrator/              # Coordinates agent interactions
+│   ├── agent_handlers.py      # Manages agent execution flow
+│   ├── orchestrator_v2.py     # Main orchestration logic
+│   ├── workflow.py           # Defines workflow steps
+│   └── states.py             # Workflow state management
+├── services/                  # Application services
+│   └── interactive_session.py # Manages user interaction sessions
+├── utils/                     # Utility modules
+│   ├── conversation_manager.py # Handles conversation state
+│   └── llm.py                # LLM initialization and configuration
+├── data/                      # Campaign data storage
+│   ├── campaign_data.json    # Sample campaign data
+│   └── campaigns.csv         # Campaign metrics database
+└── cli.py                    # Command-line interface
 ```
 
 ## Usage Instructions
 ### Prerequisites
-- Python 3.8+
+- Python 3.12 or higher
+- Google API key for LLM access
 - Required Python packages:
   - langchain
-  - pydantic
+  - langchain-google-genai
+  - rich (for CLI formatting)
   - python-dotenv
-  - langgraph
 
 ### Installation
+1. Clone the repository:
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd campaign-agent-platform
+```
 
-# Create and activate virtual environment
+2. Create and activate a virtual environment:
+```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate     # Windows
+```
 
-# Install dependencies
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
+```
 
-# Set up environment variables
+4. Set up environment variables:
+```bash
 cp .env.example .env
-# Edit .env with your API keys and configurations
+# Edit .env and add your Google API key
 ```
 
 ### Quick Start
-```python
-from interactive_session import InteractiveSession
+1. Start the CLI interface:
+```bash
+python cli.py
+```
 
-# Initialize session
-session = InteractiveSession()
-session_id = session.start_session()
+2. Enter campaign analysis commands:
+```
+analyze campaign CAMPAIGN123
+```
 
-# Example interaction
-response = session.process_message(
-    session_id,
-    "Can you analyze our campaign performance?"
-)
-print(response)
+3. Request recommendations:
+```
+recommend improvements
 ```
 
 ### More Detailed Examples
+1. Analyzing campaign performance:
 ```python
-# Get campaign recommendations
-response = session.process_message(
-    session_id,
-    "What recommendations do you have for improving our CTR?"
-)
+from agents.analysis_agent import AnalysisAgent
+agent = AnalysisAgent()
+results = agent.analyze_campaign({
+    "campaign_id": "CAMPAIGN123",
+    "clicks": 2543,
+    "impressions": 43290,
+    "spend": 9500,
+    "revenue": 17500
+})
+```
 
-# Get performance summary
-response = session.process_message(
-    session_id,
-    "Can you summarize our campaign performance?"
-)
-
-# Provide feedback
-response = session.process_message(
-    session_id,
-    "The last recommendation about social media timing didn't work for us"
+2. Generating recommendations:
+```python
+from agents.recommendation_agent import RecommendationAgent
+agent = RecommendationAgent()
+recommendations = agent.generate_recommendations(
+    campaign_data,
+    analysis_results,
+    conversation_history
 )
 ```
 
 ### Troubleshooting
-Common issues and solutions:
+1. LLM Connection Issues:
+- Verify Google API key is set correctly in .env
+- Check network connectivity
+- Ensure API quota limits haven't been exceeded
 
-1. Language Model API Connection Issues
-```python
-# Check if API key is properly set
-import os
-print(os.getenv("OPENAI_API_KEY"))  # Should show your API key
-```
-
-2. Data Loading Errors
-- Ensure campaign data file exists in the correct location
-- Verify JSON format of campaign data
-- Check file permissions
-
-3. Memory Issues
-- Monitor conversation history size
-- Clear session if needed:
-```python
-session.clear_session(session_id)
-```
+2. Data Loading Errors:
+- Verify campaign_data.json exists in the data directory
+- Check JSON file format is valid
+- Ensure file permissions are correct
 
 ## Data Flow
-The platform processes campaign data through a series of specialized agents that work together to provide insights and recommendations.
+The platform processes campaign data through a pipeline of specialized agents that analyze, recommend, and summarize campaign performance.
 
 ```ascii
-User Input → Input Analysis → Data Gathering → Analysis → Recommendations/Summary → Response
-     ↑                                                           |
-     |_________________________________________________________|
-              Feedback Loop
+User Input → Input Analysis → Data Gathering → Analysis → Recommendations/Summary
+     ↑                                            |              |
+     └────────────────── Feedback ───────────────┴──────────────┘
 ```
 
 Key component interactions:
-1. User input is analyzed for intent classification
-2. Relevant campaign data and context is gathered
-3. Performance metrics are calculated and analyzed
-4. Patterns and issues are detected
-5. Recommendations or summaries are generated based on analysis
-6. Response is formatted and delivered to user
-7. User feedback is incorporated into future recommendations
-8. Conversation history provides context for future interactions
+1. User input is analyzed to determine intent (summary/recommendations)
+2. Data gathering agent collects campaign metrics and market context
+3. Analysis agent processes metrics and detects patterns
+4. Recommendation agent generates optimization suggestions
+5. Summary agent creates comprehensive performance reports
+6. Conversation manager maintains context across interactions
+7. Orchestrator coordinates the flow between agents
+8. CLI provides user interface and displays formatted results
