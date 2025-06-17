@@ -45,7 +45,7 @@ class AnalysisAgent:
         issues = []
         for pattern_name, (check_fn, message) in self.performance_patterns.items():
             try:
-                if check_fn(campaign_data):  # Remove [0] as we're not returning a tuple
+                if check_fn(campaign_data):
                     issues.append(message)
             except (KeyError, ZeroDivisionError):
                 continue

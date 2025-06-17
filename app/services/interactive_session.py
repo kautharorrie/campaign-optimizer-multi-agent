@@ -1,8 +1,7 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict
 from uuid import uuid4
 from app.orchestrator.orchestrator import OrchestratorAgent
 from app.utils.conversation_manager import ConversationManager, MessageType
-from app.agents.user_input_analysis_agent import UserInputType
 
 class InteractiveSession:
     def __init__(self):

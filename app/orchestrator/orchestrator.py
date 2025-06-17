@@ -49,20 +49,3 @@ class OrchestratorAgent:
 
         except Exception as e:
             return ResponseFormatter.format_error_response(e)
-
-
-if __name__ == "__main__":
-    orchestrator = OrchestratorAgent()
-
-    # Test summary generation
-    summary_result = orchestrator.run("Can you summarize the campaign performance?")
-    print("\n📊 Summary Request Results:")
-    if summary_result.get('summary'):
-        print(f"Campaign: {summary_result['summary'].get('campaign_name')}")
-        print(f"Summary: {summary_result['summary'].get('summary')}")
-        print(f"Key Metrics: {summary_result['summary'].get('key_metrics')}")
-
-    # Test recommendation generation
-    rec_result = orchestrator.run("What improvements would you recommend?")
-    print("\n💡 Recommendation Request Results:")
-    print(f"Recommendations: {rec_result.get('recommendations')}")
