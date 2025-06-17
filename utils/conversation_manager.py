@@ -36,8 +36,10 @@ class ConversationManager:
                    session_id: str,
                    content: str,
                    msg_type: MessageType,
-                   metadata: Dict = {}) -> Message:
+                    metadata=None) -> Message:
         """Add a message to the conversation history"""
+        if metadata is None:
+            metadata = {}
         if session_id not in self.sessions:
             self.create_session(session_id)
 

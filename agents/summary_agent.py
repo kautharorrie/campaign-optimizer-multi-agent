@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime
 from langchain_core.messages import HumanMessage
 from utils.llm import LLMInitializer

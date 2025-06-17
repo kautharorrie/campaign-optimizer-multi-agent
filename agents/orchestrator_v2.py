@@ -48,11 +48,18 @@ class OrchestratorAgent:
         workflow.add_node("generate_recommendations", self._generate_recommendations)
         workflow.add_node("generate_summary", self._generate_summary)
 
-        # Define the flow
-        workflow.add_edge("analyze_user_input", "gather_data")
-        workflow.add_edge("gather_data", "analyze_data")
+        # Add conditional edge after input analysis
+        workflow.add_conditional_edges(
+            "analyze_user_input",
+            lambda state: "end" if state.user_input_type == UserInputType.DONE else "gather_data",
+            {
+                "gather_data": "gather_data",
+                "end": END
+            }
+        )
 
-        # Add conditional edges after analysis
+        # Rest of the workflow remains the same
+        workflow.add_edge("gather_data", "analyze_data")
         workflow.add_conditional_edges(
             "analyze_data",
             self._route_after_analysis,
@@ -63,7 +70,6 @@ class OrchestratorAgent:
             }
         )
 
-        # Add terminal edges
         workflow.add_edge("generate_recommendations", END)
         workflow.add_edge("generate_summary", END)
 
@@ -198,6 +204,13 @@ class OrchestratorAgent:
 
             compiled_workflow = self.workflow.compile()
             final_state = compiled_workflow.invoke(initial_state)
+            # If user wants to end the conversation
+            if final_state.user_input_type == UserInputType.DONE:
+                return {
+                    "message": "Conversation ended. Goodbye!",
+                    "status": "ended",
+                    "user_input_type": UserInputType.DONE.value
+            }
 
             # Convert final_state to dict if it isn't already
             if not isinstance(final_state, dict):
