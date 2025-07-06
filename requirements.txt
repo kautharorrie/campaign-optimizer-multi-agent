@@ -14,3 +14,4 @@ pytrends~=4.9.2
 requests~=2.32.4
 rich~=14.0.0
 streamlit~=1.45.1
+Markdown~=3.8.2
