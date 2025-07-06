@@ -63,15 +63,3 @@ class ConversationManager:
         if limit:
             return messages[-limit:]
         return messages
-
-    def get_context(self, session_id: str) -> Dict:
-        """Get conversation context"""
-        if session_id not in self.sessions:
-            return {}
-        return self.sessions[session_id].context
-
-    def update_context(self, session_id: str, new_context: Dict):
-        """Update conversation context"""
-        if session_id not in self.sessions:
-            self.create_session(session_id)
-        self.sessions[session_id].context.update(new_context)
